@@ -1,0 +1,48 @@
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/common/ProtectedRoute";
+import Login from "./component/login";
+import Register from "./component/register";
+import Dashboard from "./component/dashboard";
+import AdminDashboard from "./components/admin/AdminDashboard";
+import TraineeDashboard from "./components/trainee/TraineeDashboard";
+import Unauthorized from "./components/common/Unauthorized";
+
+function App() {
+  return (
+    <AuthProvider>
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/*" 
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/trainee/*" 
+          element={
+            <ProtectedRoute traineeOnly>
+              <TraineeDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="/unauthorized" element={<Unauthorized />} />
+      </Routes>
+    </AuthProvider>
+  );
+}
+
+export default App;
