@@ -417,7 +417,7 @@ const CourseDetail = () => {
           assignmentId={selectedAssignment?.id}
           moduleId={selectedAssignment?.moduleId}
           onClose={() => setShowQuestionForm(false)}
-          onSuccess={fetchCourseData}
+          onSuccess={() => { setShowQuestionForm(false); fetchCourseData(); }}
         />
       )}
     </div>

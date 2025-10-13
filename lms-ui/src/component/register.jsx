@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Select from "./ui/Select";
 
+import { useToast } from "../contexts/ToastContext";
+
 export default function Register() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -13,6 +15,8 @@ export default function Register() {
   const [identityType, setIdentityType] = useState("Aadhar");
   const [identityImage, setIdentityImage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [inlineMsg, setInlineMsg] = useState("");
+  const toast = useToast();
   const [step, setStep] = useState(1); 
 
   const navigate = useNavigate();
@@ -43,15 +47,19 @@ export default function Register() {
       const data = await response.json();
 
       if (response.ok) {
-        alert("Registration successful!");
-        localStorage.setItem("token", data.token);
+        // Do not store token or auto-login; redirect to login
+        try {
+          const { useToast } = await import("../contexts/ToastContext");
+        } catch {}
+        // Fallback to alert removed; show inline message below via state
+        setInlineMsg("Registration submitted! Your account is pending admin approval.");
         navigate("/login");
       } else {
-        alert(data.message || "Registration failed");
+        toast.error(data.message || "Registration failed");
       }
     } catch (error) {
       console.error("Registration error:", error);
-      alert("Network error. Please try again.");
+      toast.error("Network error. Please try again.");
     }
 
     setLoading(false);
@@ -64,6 +72,10 @@ export default function Register() {
           <h1 className="text-3xl font-bold text-slate-900 mb-6 text-center">
             Create account
           </h1>
+
+          {inlineMsg && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-sm">{inlineMsg}</div>
+          )}
 
           {/* Step 1 */}
           {step === 1 && (

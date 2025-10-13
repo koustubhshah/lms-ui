@@ -15,13 +15,32 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    console.log('Login: Attempting to login...');
 
-    const result = await login({ identifier, password });
+    try {
+      const result = await login({ identifier, password });
+      console.log('Login: Login result', { success: result.success, role: result.role });
 
-    if (result.success) {
-      navigate(from, { replace: true });
-    } else {
-      setError(result.error || "Login failed. Please try again.");
+      if (result.success) {
+        // Get the dashboard path based on user role
+        let dashboardPath = '/dashboard'; // Default fallback
+        
+        if (result.role?.toLowerCase() === 'admin') {
+          dashboardPath = '/admin/dashboard';
+        } else if (result.role?.toLowerCase() === 'trainee') {
+          dashboardPath = '/trainee/dashboard';
+        }
+        
+        console.log('Login: Redirecting to', dashboardPath);
+        navigate(dashboardPath, { replace: true });
+      } else {
+        const errorMsg = result.error || "Login failed. Please check your credentials and try again.";
+        console.error('Login error:', errorMsg);
+        setError(errorMsg);
+      }
+    } catch (err) {
+      console.error('Login: Unexpected error during login', err);
+      setError("An unexpected error occurred. Please try again.");
     }
   };
 
@@ -91,15 +110,23 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="mt-6 text-sm text-slate-600">
-            Don’t have an account?{" "}
+          <div className="mt-6 flex items-center justify-between text-sm text-slate-600">
             <button
-              onClick={() => navigate("/register")}
+              onClick={() => navigate("/forgot-password")}
               className="text-slate-900 font-medium hover:underline"
             >
-              Create account
+              Forgot password?
             </button>
-          </p>
+            <div>
+              Don’t have an account?{" "}
+              <button
+                onClick={() => navigate("/register")}
+                className="text-slate-900 font-medium hover:underline"
+              >
+                Create account
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

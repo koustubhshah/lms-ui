@@ -9,21 +9,24 @@ import {
   GraduationCap, 
   Award,
   TrendingUp,
-  Clock
+  Clock,
+  UserPlus
 } from 'lucide-react';
 
 import AdminOverview from './AdminOverview';
 import CourseManagement from './CourseManagement';
+import PendingRequests from './PendingRequests';
+import UserManagement from './UserManagement';
 import {
   ModuleManagement,
   AssignmentManagement,
-  UserManagement,
-  EnrollmentManagement,
   ResultManagement,
   CertificateManagement,
   SearchPage,
   SettingsPage
 } from './PlaceholderComponents';
+import EnrollmentManagement from './EnrollmentManagement';
+import ProgressOverview from './ProgressOverview';
 
 const AdminDashboard = () => {
   return (
@@ -33,8 +36,11 @@ const AdminDashboard = () => {
         <Route path="courses/*" element={<CourseManagement />} />
         <Route path="modules/*" element={<ModuleManagement />} />
         <Route path="assignments/*" element={<AssignmentManagement />} />
-        <Route path="users/*" element={<UserManagement />} />
+        <Route path="users/*" element={<UserManagement />}>
+          <Route path="pending-requests" element={<PendingRequests />} />
+        </Route>
         <Route path="enrollments/*" element={<EnrollmentManagement />} />
+        <Route path="progress" element={<ProgressOverview />} />
         <Route path="results/*" element={<ResultManagement />} />
         <Route path="certificates/*" element={<CertificateManagement />} />
         <Route path="search" element={<SearchPage />} />

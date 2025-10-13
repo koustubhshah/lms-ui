@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import Layout from '../layout/Layout';
 import LoadingSpinner from '../common/LoadingSpinner';
 import apiService from '../../services/api';
@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Plus
 } from 'lucide-react';
+import TraineeCourseDetail from './TraineeCourseDetail';
 
 const TraineeOverview = () => {
   const { user } = useAuth();
@@ -21,6 +22,18 @@ const TraineeOverview = () => {
   const [availableCourses, setAvailableCourses] = useState([]);
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const navigate = useNavigate();
+
+  const progressSummaryKey = (userId, courseId) => `lms_progress_summary_${userId}_${courseId}`;
+  const getProgressSummary = (courseId) => {
+    try {
+      const raw = localStorage.getItem(progressSummaryKey(user?.id, courseId));
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
 
   useEffect(() => {
     fetchTraineeData();
@@ -30,11 +43,11 @@ const TraineeOverview = () => {
     try {
       setLoading(true);
       const [courses, allCourses, certs] = await Promise.all([
-        apiService.enrollments.getByUser(user.id),
+        apiService.enrollments.getAll(),
         apiService.courses.getAll(),
         apiService.certificates.getByUser(user.id)
       ]);
-
+      setLoadError('');
       setEnrolledCourses(courses);
       setAvailableCourses(allCourses.filter(course => 
         !courses.some(enrollment => enrollment.courseId === course.id)
@@ -42,6 +55,7 @@ const TraineeOverview = () => {
       setCertificates(certs);
     } catch (error) {
       console.error('Failed to fetch trainee data:', error);
+      setLoadError(error.message || 'Unable to load your enrollments due to permissions.');
     } finally {
       setLoading(false);
     }
@@ -57,7 +71,10 @@ const TraineeOverview = () => {
       fetchTraineeData(); // Refresh data
     } catch (error) {
       console.error('Failed to enroll:', error);
-      alert('Failed to enroll in course');
+      const msg = (error.message || '').toLowerCase().includes('403')
+        ? 'You do not have permission to enroll yourself in this course. Please contact an administrator.'
+        : 'Failed to enroll in course';
+      alert(msg);
     }
   };
 
@@ -113,6 +130,11 @@ const TraineeOverview = () => {
       {/* My Courses */}
       <div>
         <h2 className="text-xl font-semibold text-slate-900 mb-4">My Courses</h2>
+        {loadError && (
+          <div className="mb-4 p-3 rounded-md bg-yellow-50 text-yellow-800 border border-yellow-200">
+            {loadError}
+          </div>
+        )}
         {enrolledCourses.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
             <BookOpen className="h-16 w-16 text-slate-300 mx-auto mb-4" />
@@ -132,7 +154,22 @@ const TraineeOverview = () => {
                 <p className="text-sm text-slate-600 mb-4">
                   Enrolled: {new Date(enrollment.enrollmentDate).toLocaleDateString()}
                 </p>
-                <button className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                {/* Progress bar */}
+                {(() => { const s = getProgressSummary(enrollment.courseId); return (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
+                      <span>Progress</span>
+                      <span>{s?.percent ?? 0}%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2">
+                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${s?.percent ?? 0}%` }} />
+                    </div>
+                    {s && (
+                      <div className="text-xs text-slate-500 mt-1">{s.modulesCompleted}/{s.modulesTotal} modules</div>
+                    )}
+                  </div>
+                ); })()}
+                <button onClick={() => navigate(`/trainee/courses/${enrollment.courseId}`)} className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                   <Play className="h-4 w-4 mr-2" />
                   Continue Learning
                 </button>
@@ -247,9 +284,11 @@ const TraineeDashboard = () => {
       <Routes>
         <Route path="/dashboard" element={<TraineeOverview />} />
         <Route path="/courses" element={<TraineeCourses />} />
+        <Route path="/courses/:courseId" element={<TraineeCourseDetail />} />
         <Route path="/browse" element={<TraineeBrowse />} />
         <Route path="/assignments" element={<TraineeAssignments />} />
         <Route path="/progress" element={<TraineeProgress />} />
+        <Route path="/progress/certificates" element={<TraineeCertificates />} />
         <Route path="/certificates" element={<TraineeCertificates />} />
         <Route path="/profile" element={<TraineeProfile />} />
         <Route path="/" element={<TraineeOverview />} />
