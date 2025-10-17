@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import LoadingSpinner from '../common/LoadingSpinner';
 import apiService from '../../services/api';
 import { Search, Eye, RefreshCcw } from 'lucide-react';
+import { useSignalR } from '../../contexts/SignalRContext';
 
 const DetailDrawer = ({ open, onClose, trainee, course, assignments, results, onGrade, onMarkComplete, canComplete, onViewCertificate, onDownloadCertificate, onGenerateCertificate }) => {
   if (!open) return null;
@@ -147,11 +148,42 @@ const ProgressOverview = () => {
     }
   };
 
-  const onGenerateCertificate = () => {
-    alert('Certificate generation is handled by the backend. Expose an endpoint like POST /api/Certificate/generate { traineeId, courseId } and we will call it here.');
-  };
+  const onGenerateCertificate = async () => {
+  if (!selected) return;
+  try {
+    const payload = {
+      traineeId: selected.trainee.id,
+      courseId: selected.course.id,
+      traineeFullName: selected.trainee.name,
+      courseName: selected.course.name,
+      issuedDate: new Date().toISOString()
+    };
+    const cert = await apiService.certificates.create(payload);
+    alert(`Certificate generated (ID: ${cert.id})`);
+  } catch (e) {
+    alert(e?.message || 'Failed to generate certificate');
+  }
+};
+
+  const signalR = useSignalR();
 
   useEffect(() => { load(); }, []);
+
+  // Auto-refresh: listen to SignalR notifications if backend emits, plus polling fallback
+  useEffect(() => {
+    const onResultAdded = async () => { await load(); };
+    const onEnrollmentUpdated = async () => { await load(); };
+    signalR.on && signalR.on('ResultAdded', onResultAdded);
+    signalR.on && signalR.on('EnrollmentUpdated', onEnrollmentUpdated);
+
+    const interval = setInterval(() => { load(); }, 15000);
+
+    return () => {
+      clearInterval(interval);
+      signalR.off && signalR.off('ResultAdded', onResultAdded);
+      signalR.off && signalR.off('EnrollmentUpdated', onEnrollmentUpdated);
+    };
+  }, []);
 
   const items = useMemo(() => {
     const byId = (list, id) => list.find(x => x.id === id);
@@ -226,7 +258,7 @@ const ProgressOverview = () => {
         marksObtained: Number(gradeForm.marksObtained),
         totalMarks: Number(gradeForm.totalMarks),
         status: 'Reviewed',
-        feedback: undefined,
+        feedback: (gradeForm.feedback && gradeForm.feedback.trim()) ? gradeForm.feedback : 'Reviewed by admin',
         created: new Date().toISOString(),
         reAttemptCount: Number(gradeForm.reAttemptCount) || 0,
       };

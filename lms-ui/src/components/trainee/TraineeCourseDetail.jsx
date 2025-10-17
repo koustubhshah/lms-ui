@@ -240,7 +240,7 @@ const TraineeCourseDetail = () => {
         marksObtained: Number(payload.correct) || 0,
         totalMarks: Number(payload.totalQuestions) || 0,
         status: 'Reviewed',
-        feedback: undefined,
+        feedback: 'Auto-graded submission',
         created: new Date().toISOString(),
         reAttemptCount: 0,
       };

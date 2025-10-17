@@ -37,6 +37,54 @@ class ApiService {
     };
   }
 
+  normalizeResult(r) {
+    if (!r) return r;
+    const id = r.id ?? r.Id;
+    const assignmentId = r.assignmentId ?? r.AssignmentId;
+    const moduleId = r.moduleId ?? r.ModuleId;
+    const courseId = r.courseId ?? r.CourseId;
+    const traineeId = r.traineeId ?? r.TraineeId;
+    const marksObtained = r.marksObtained ?? r.MarksObtained ?? 0;
+    const totalMarks = r.totalMarks ?? r.TotalMarks ?? 0;
+    const status = r.status ?? r.Status ?? '';
+    const feedback = r.feedback ?? r.Feedback ?? undefined;
+    const created = r.created ?? r.Created ?? r.date ?? r.Date ?? undefined;
+    const reAttemptCount = r.reAttemptCount ?? r.ReAttemptCount ?? 0;
+    return {
+      ...r,
+      id,
+      assignmentId,
+      moduleId,
+      courseId,
+      traineeId,
+      marksObtained,
+      totalMarks,
+      status,
+      feedback,
+      created,
+      reAttemptCount,
+    };
+  }
+
+  normalizeCertificate(c) {
+    if (!c) return c;
+    const id = c.id ?? c.Id;
+    const traineeId = c.traineeId ?? c.TraineeId;
+    const courseId = c.courseId ?? c.CourseId;
+    const traineeFullName = c.traineeFullName ?? c.TraineeFullName ?? c.traineeName ?? c.TraineeName;
+    const courseName = c.courseName ?? c.CourseName ?? c.courseTitle ?? c.CourseTitle;
+    const issuedDate = c.issuedDate ?? c.IssuedDate ?? c.issuedOn ?? c.IssuedOn;
+    return {
+      ...c,
+      id,
+      traineeId,
+      courseId,
+      traineeFullName,
+      courseName,
+      issuedDate,
+    };
+  }
+
   // Helper method to get auth headers
   getAuthHeaders() {
     const token = localStorage.getItem("token");
@@ -337,17 +385,26 @@ class ApiService {
   // ---------------- RESULTS (using Marks endpoint) ----------------
   results = {
     // Admin: get all results
-    getAll: () => this.request(`${this.baseURL}/Result/all`),
+    getAll: async () => {
+      const data = await this.request(`${this.baseURL}/Result/all`);
+      return Array.isArray(data) ? data.map(r => this.normalizeResult(r)) : [];
+    },
     // Trainee: get own results
-    getMine: () => this.request(`${this.baseURL}/Result/my-results`),
+    getMine: async () => {
+      const data = await this.request(`${this.baseURL}/Result/my-results`);
+      return Array.isArray(data) ? data.map(r => this.normalizeResult(r)) : [];
+    },
     // Add/submission: choose endpoint by role
     add: (data, passWeightage) => {
       const role = (localStorage.getItem("role") || "").toLowerCase();
       const path = role === "trainee" ? "submit" : "add";
+      const defaultFeedback = role === "trainee" ? "Auto-graded submission" : "Reviewed by admin";
+      const feedback = (typeof data.feedback === 'string' && data.feedback.trim().length > 0) ? data.feedback : defaultFeedback;
+      const payload = { ...data, feedback };
       return this.request(`${this.baseURL}/Result/${path}?passWeightage=${encodeURIComponent(passWeightage ?? 0)}`, {
         method: "POST",
-        body: JSON.stringify(data),
-      });
+        body: JSON.stringify(payload),
+      }).then(res => this.normalizeResult(res));
     },
   };
 
@@ -359,7 +416,10 @@ class ApiService {
     },
     // Prevent UI breakage where getByUser is referenced
     getByUser: (userId) => Promise.resolve([]),
-    getById: (id) => this.request(`${this.baseURL}/Certificate/view/${id}`),
+    getById: async (id) => {
+      const data = await this.request(`${this.baseURL}/Certificate/view/${id}`);
+      return this.normalizeCertificate(data);
+    },
     // Download with auth and return Blob
     download: async (id) => {
       const token = localStorage.getItem("token");
@@ -375,9 +435,13 @@ class ApiService {
       }
       return await res.blob();
     },
-    create: (data) => {
-      // No certificate creation endpoint visible in API
-      return Promise.reject(new Error('Certificate creation not available'));
+    create: async (data) => {
+      const payload = { traineeId: data.traineeId, courseId: data.courseId };
+      const res = await this.request(`${this.baseURL}/Certificate/generate`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      return this.normalizeCertificate(res);
     },
     update: (id, data) => {
       // No certificate update endpoint visible in API
